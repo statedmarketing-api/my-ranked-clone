@@ -1,0 +1,1 @@
+	ts\nimport { Module } from '@nestjs/common';\nimport { TemplatesController } from './templates.controller';\nimport { TemplatesService } from './templates.service';\n\n@Module({\n controllers: [TemplatesController],\n providers: [TemplatesService],\n exports: [TemplatesService],\n})\nexport class TemplatesModule {}\n
