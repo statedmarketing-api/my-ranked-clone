@@ -1,0 +1,1 @@
+gitignore\n# Node\nnode_modules/\ndist/\npm-debug.log\nyarn-debug.log\nyarn-error.log\npnpm-debug.log\n\n# Prisma\n.prisma/\n*.db\n\n# Next.js\n.next/\nout/\n.cache/\n.tmp/\n\n# Docker\ndocker-compose.override.yml\n\n# Local env files\n.env\n.env.local\n.env.development\n.env.production\n
