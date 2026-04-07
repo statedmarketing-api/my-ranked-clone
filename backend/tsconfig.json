@@ -1,0 +1,1 @@
+json\n{\n \"compilerOptions\": {\n \"module\": \"commonjs\",\n \"target\": \"es2022\",\n \"strict\": true,\n \"sourceMap\": true,\n \"outDir\": \"./dist\",\n \"esModuleInterop\": true,\n \"skipLibCheck\": true,\n \"resolveJsonModule\": true\n },\n \"include\": [\"src/**/*.ts\"]\n}\n
