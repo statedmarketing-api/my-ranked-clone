@@ -23,9 +23,10 @@ apt-get install -y --no-install-recommeds ffmpeg dumb-inint && \
 rm -rf /var/lib/apt/lists/*
 
 # ---- Copy the compiled app and its node_modules from the builder stage ----
-COPY --from-0 /app/dist ./dist
-COPY --from-0 /app/node_modules ./node_modules
-COPY --from-0 /app/prisma ./prisma
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+
 # Copy the worker source (the same image is used for the background worker)
 COPY worker ./worker
 
