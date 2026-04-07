@@ -1,0 +1,1 @@
+ts\nimport { Module } from '@nestjs/common';\nimport { VideosController } from './videos.controller';\nimport { VideosService } from './videos.service';\nimport { TemplatesModule } from '../templates/templates.module';\n\n@Module({\n imports: [TemplatesModule],\n controllers: [VideosController],\n providers: [VideosService],\n})\nexport class VideosModule {}\n
