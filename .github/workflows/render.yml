@@ -7,8 +7,8 @@ name: Build & Deploy to Render
 # You can also start it manually from the Actions tab → “Run workflow”.
 on:
   push:
-    branches: [ main ]          # <-- change only if your default branch has another name
-  workflow_dispatch:           # <-- lets you trigger it by hand
+    branches: [ main ]          # change only if your default branch has another name
+  workflow_dispatch:           # lets you trigger it by hand
 
 jobs:
   # ------------------------------------------------------------
@@ -52,8 +52,11 @@ jobs:
 
     steps:
       - name: Trigger Render Deploy
-        env:
-          # 👇 Add these two secrets in your repo → Settings → Secrets → Actions
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}          # API key from Render
-          SERVICE_ID:     ${{ secrets.RENDER_SERVICE_ID }}      # Service
-
+        # The two secrets must be added to the repo (Settings → Secrets → Actions)
+        #   RENDER_API_KEY   → API key you created in Render (Account → API Keys)
+        #   RENDER_SERVICE_ID → Service ID of the **Web Service** (not the worker)
+        run: |
+          curl -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":true}'
