@@ -1,0 +1,1 @@
+	ts\nimport { Injectable } from '@nestjs/common';\nimport { PrismaService } from '../prisma/prisma.service';\n\n@Injectable()\nexport class TemplatesService {\n constructor(private prisma: PrismaService) {}\n async list() {\n return this.prisma.template.findMany();\n }\n}\n
