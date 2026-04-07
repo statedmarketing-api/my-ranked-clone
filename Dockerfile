@@ -1,46 +1,50 @@
-# ==============================
-#  1️⃣  Builder stage – compile NestJS + Prisma
-# ==============================
-FROM node:20-slim AS builder            # Debian‑based (glibc) Node image
+#--------------------------------------------------------------
+#  1️⃣ Builder stage – compile NestJS + Prisma
+#--------------------------------------------------------------
+FROM node:20-slim AS builder          # Debian‑based (glibc) Node image
+
+# set a working directory inside the container
 WORKDIR /app
 
-# ---- Install OS packages needed to compile native modules (Python, make, g++) ----
+# Install OS packages needed to compile native modules (Python, make, g++)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends python3 make g++ && \
     rm -rf /var/lib/apt/lists/*
 
-# ---- Copy only the package files first (caches layer if they don't change) ----
+# Copy only the package files first – this caches the layer when dependencies don't change
 COPY backend/package*.json ./
 
-# ---- Clean install all dependencies (including dev deps for Prisma) ----
+# Install *all* dependencies (including devDeps needed for Prisma)
 RUN npm ci
 
-# ---- Copy the rest of the backend source code ----
+# Copy the rest of the backend source code
 COPY backend/ .
 
-# ---- Generate Prisma client and compile TypeScript ----
+# Generate Prisma client and compile the TypeScript sources
 RUN npx prisma generate && npm run build   # creates ./dist
 
-# ==============================
-#  2️⃣  Runtime stage – the image that Render will actually run
-# ==============================
-FROM node:20-slim AS runtime            # another small Debian‑based image
+#--------------------------------------------------------------
+#  2️⃣ Runtime stage – the image that Render actually runs
+#--------------------------------------------------------------
+FROM node:20-slim AS runtime          # same base image, but much smaller
+
+# working directory for the runtime container
 WORKDIR /app
 
-# ---- Install ffmpeg (needed by the background worker) ----
+# Install only what the runtime needs: ffmpeg (for video processing) and dumb‑init (proper PID 1 handling)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg dumb-init && \
     rm -rf /var/lib/apt/lists/*
 
-# ---- Copy compiled app and node_modules from the builder stage ----
+# Copy the compiled app and its node_modules from the builder stage
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 
-# ---- Copy the worker source (the same image is used for the background worker) ----
+# Also copy the worker source (Render will start this container with a different command)
 COPY worker ./worker
 
-ENV NODE_ENV=production
+# expose the port the NestJS API listens on (Render forwards 443 → 3001 automatically)
 EXPOSE 3001
 
 # Render will override the command:
