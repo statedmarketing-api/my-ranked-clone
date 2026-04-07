@@ -1,36 +1,49 @@
-# ---------- Builder ----------
-FROM node:20-alpine AS builder
+# ==============================
+#  1️⃣  Builder stage – compile NestJS + Prisma
+# ==============================
+FROM node:20-slim AS builder            # Debian‑based (glibc) Node image
 WORKDIR /app
 
-# ---- Install backend dependencies (NestJS + Prisma) ----
-# Copy only the package files first – this speeds up rebuilds when only source changes
+# ---- Install OS packages needed to compile native modules (Python, make, g++) ----
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---- Copy only the package files first (caches layer if they don't change) ----
 COPY backend/package*.json ./
 
-# *** QUICK FIX: use npm install (works without a lock‑file) ***
-RUN npm install
+# ---- Clean install all dependencies (including dev deps for Prisma) ----
+RUN npm ci
 
-# ---- Copy the whole backend source and compile it ----
+# ---- Copy the rest of the backend source code ----
 COPY backend/ .
+
+# ---- Generate Prisma client and compile TypeScript ----
 RUN npx prisma generate && npm run build   # creates ./dist
 
-# ---------- Runtime ----------
-FROM alpine:3.18 AS runtime
-# Install ffmpeg (needed by the background worker) and dumb‑init for proper signal handling
-RUN apk add --no-cache ffmpeg dumb-init
-
+# ==============================
+#  2️⃣  Runtime stage – the image that Render will actually run
+# ==============================
+FROM node:20-slim AS runtime            # another small Debian‑based image
 WORKDIR /app
-# Copy compiled NestJS code and node_modules from the builder stage
+
+# ---- Install ffmpeg (needed by the background worker) ----
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg dumb-init && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---- Copy compiled app and node_modules from the builder stage ----
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 
-# Also copy the worker source (the worker will be started in a separate Render service)
+# ---- Copy the worker source (the same image is used for the background worker) ----
 COPY worker ./worker
 
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# Render will replace the CMD/ENTRYPOINT:
-#   • Web Service → `node dist/main.js`
-#   • Background Worker → `node worker/src/worker.js`
+# Render will override the command:
+#   • API container → `node dist/main.js`
+#   • Worker container → `node worker/src/worker.js`
 ENTRYPOINT ["dumb-init", "--"]
