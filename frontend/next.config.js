@@ -1,0 +1,1 @@
+js\n/** @type {import('next').NextConfig} */\nconst nextConfig = {\n output: 'export', // required for GitHub Pages static export\n images: { remotePatterns: [{ protocol: 'https', hostname: '**' }] },\n};\nmodule.exports = nextConfig;\n
