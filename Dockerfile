@@ -3,8 +3,11 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # ---- Install backend dependencies (NestJS + Prisma) ----
+# Copy only the package files first – this speeds up rebuilds when only source changes
 COPY backend/package*.json ./
-RUN npm ci
+
+# *** QUICK FIX: use npm install (works without a lock‑file) ***
+RUN npm install
 
 # ---- Copy the whole backend source and compile it ----
 COPY backend/ .
@@ -27,7 +30,7 @@ COPY worker ./worker
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# Render will override the command:
+# Render will replace the CMD/ENTRYPOINT:
 #   • Web Service → `node dist/main.js`
 #   • Background Worker → `node worker/src/worker.js`
 ENTRYPOINT ["dumb-init", "--"]
