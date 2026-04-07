@@ -1,1 +1,33 @@
-Dockerfile\n# ---------- Builder ----------\nFROM node:20-alpine AS builder\nWORKDIR /app\n\n# copy backend (NestJS) only – we’ll also reuse the worker files later\nCOPY backend/package*.json ./\nRUN npm ci\nCOPY backend/ .\nRUN npx prisma generate && npm run build\n\n# ---------- Runtime ----------\nFROM alpine:3.18 AS runtime\n# Install ffmpeg (needed by the worker) and dumb‑init for proper signal handling\nRUN apk add --no-cache ffmpeg dumb-init\n\nWORKDIR /app\nCOPY --from=builder /app/dist ./dist\nCOPY --from=builder /app/node_modules ./node_modules\nCOPY --from=builder /app/prisma ./prisma\nCOPY worker ./worker # copy the worker source (we’ll start it from here)\nENV NODE_ENV=production\nEXPOSE 3001\n\nENTRYPOINT [\"dumb-init\", \"--\"]\n# Render will override the command:\n# API container → `node dist/main.js`\n# Worker container → `node worker/src/worker.js`\n
+# ---------- Builder ----------
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# ---- Install backend dependencies (NestJS + Prisma) ----
+COPY backend/package*.json ./
+RUN npm ci
+
+# ---- Copy the whole backend source and compile it ----
+COPY backend/ .
+RUN npx prisma generate && npm run build   # creates ./dist
+
+# ---------- Runtime ----------
+FROM alpine:3.18 AS runtime
+# Install ffmpeg (needed by the background worker) and dumb‑init for proper signal handling
+RUN apk add --no-cache ffmpeg dumb-init
+
+WORKDIR /app
+# Copy compiled NestJS code and node_modules from the builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+
+# Also copy the worker source (the worker will be started in a separate Render service)
+COPY worker ./worker
+
+ENV NODE_ENV=production
+EXPOSE 3001
+
+# Render will override the command:
+#   • Web Service → `node dist/main.js`
+#   • Background Worker → `node worker/src/worker.js`
+ENTRYPOINT ["dumb-init", "--"]
