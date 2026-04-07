@@ -1,0 +1,1 @@
+ts\nimport { Controller, Get } from '@nestjs/common';\nimport { TemplatesService } from './templates.service';\n\n@Controller('api/templates')\nexport class TemplatesController {\n constructor(private readonly tmpl: TemplatesService) {}\n @Get()\n list() {\n return this.tmpl.list();\n }\n}\n
