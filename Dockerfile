@@ -22,7 +22,7 @@ RUN apt-get update && \
 apt-get install -y --no-install-recommeds ffmpeg dumb-inint && \
 rm -rf /var/lib/apt/lists/*
 
-* --- Copy the compiled output and node_modules from the builder stage
+* ---- Copy the compiled app and its node_modules from the builder stage ----
 COPY --from-0 /app/dist ./dist
 COPY --from-0 /app/node_modules ./node_modules
 COPY --from-0 /app/prisma ./prisma
