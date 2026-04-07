@@ -1,1 +1,59 @@
+# --------------------------------------------------------------
+#  GitHub Actions – Build Docker image & trigger a Render deploy
+# --------------------------------------------------------------
+name: Build & Deploy to Render
+
+# Run on every push to the default branch (usually “main”)
+# You can also start it manually from the Actions tab → “Run workflow”.
+on:
+  push:
+    branches: [ main ]          # <-- change only if your default branch has another name
+  workflow_dispatch:           # <-- lets you trigger it by hand
+
+jobs:
+  # ------------------------------------------------------------
+  # 1️⃣  Build the image and push it to GitHub Container Registry
+  # ------------------------------------------------------------
+  build-and-push:
+    runs-on: ubuntu-latest                # GitHub’s Linux runner
+
+    steps:
+      # ---- checkout the repository so Docker can see all files ----
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ---- set up Docker Buildx (multi‑platform builder) ----
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ---- log in to GHCR – the token is auto‑provided by GitHub ----
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}          # your GitHub username
+          password: ${{ secrets.GITHUB_TOKEN }}  # secret GitHub gives you automatically
+
+      # ---- build the image and push it ----
+      # Tag format: ghcr.io/<owner>/<repo>:latest
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .                               # build from the repo root
+          push: true                               # actually push to GHCR
+          tags: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:latest
+
+  # ------------------------------------------------------------
+  # 2️⃣  Tell Render to pull the new image and redeploy
+  # ------------------------------------------------------------
+  trigger-render-deploy:
+    needs: build-and-push               # wait for the image to be pushed first
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Render Deploy
+        env:
+          # 👇 Add these two secrets in your repo → Settings → Secrets → Actions
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}          # API key from Render
+          SERVICE_ID:     ${{ secrets.RENDER_SERVICE_ID }}      # Service
 
