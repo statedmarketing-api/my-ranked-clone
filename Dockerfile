@@ -1,9 +1,8 @@
 # --------------------------------------------------------------
 #  1️⃣ Builder stage – compile NestJS, generate Prisma client, build TS
 # --------------------------------------------------------------
-FROM node:20-slim AS builder               # ✅ valid FROM line (three‑argument form not needed)
+FROM node:20-slim AS builder               # ✅ valid FROM line
 
-# Set a working directory inside the container
 WORKDIR /app
 
 # ---- Install OS packages needed to compile native modules (Python, make, g++) ----
@@ -24,4 +23,28 @@ COPY backend/ .
 RUN npx prisma generate && npm run build   # creates ./dist
 
 # --------------------------------------------------------------
-#  2️⃣ Runtime stage – the image
+#  2️⃣ Runtime stage – the image that Render will actually run
+# --------------------------------------------------------------
+FROM node:20-slim AS runtime               # clean, small image for running
+
+WORKDIR /app
+
+# ---- Install runtime‑only system packages (ffmpeg for video processing, dumb‑init for proper PID 1 handling) ----
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg dumb-init && \
+    rm -rf /var/lib/apt/lists/*
+
+# ---- Copy the compiled app and its node_modules from the builder stage ----
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+
+# ---- Also copy the worker source (the same image is used for the background worker) ----
+COPY worker ./worker
+
+EXPOSE 3001
+
+# Render will set the actual CMD:
+#   • API service → `node dist/main.js`
+#   • Worker service → `node worker/src/worker.js`
+ENTRYPOINT ["dumb-init", "--"]
